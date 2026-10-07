@@ -226,3 +226,13 @@ describe('save', () => {
     expect(v1.amount('gold').toNumber()).toBe(5);
   });
 });
+
+describe('notação padrão', () => {
+  it('format segue setDefaultNotation', async () => {
+    const { format, setDefaultNotation } = await import('../src/core/num');
+    setDefaultNotation('scientific');
+    expect(format(1.5e6)).toContain('e6');
+    setDefaultNotation('short');
+    expect(format(1.5e6)).toBe('1.5M');
+  });
+});

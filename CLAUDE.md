@@ -17,7 +17,7 @@ Este repositório é um template de jogos incrementais. Quando ele for usado com
 | --- | --- |
 | `src/core` | Motor (`engine.ts`), números grandes (`num.ts`), modificadores, save/offline, loop de passo fixo, eventos |
 | `src/modules` | Prestígio, runs curtas, automação, eventos aleatórios |
-| `src/ui` | `KitApp`/`Scene`, `Button`, `Panel`, `ProgressBar`, `Tooltip`, `Toasts`, `TreeView`, `Particles`, `FloatingText`, `ScreenShake`, `ResourceBar`, `DebugPanel` |
+| `src/ui` | `KitApp`/`Scene`, `Button`, `Panel`, `ProgressBar`, `Tooltip`, `Toasts`, `TreeView`, `Particles`, `FloatingText`, `ScreenShake`, `ResourceBar`, `DebugPanel`, `GameMenu`, `Slider`, `audio`, `settings` |
 | `src/sim` | Simulador headless de balanceamento |
 | `games/node-breaker` | Jogo de exemplo completo: use como referência e ponto de partida |
 | `tools/simulate.ts` | Bot que joga o exemplo e mede o ritmo |

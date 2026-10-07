@@ -1,3 +1,4 @@
+import { audio } from './audio';
 import { BitmapText, Container, Graphics, Text, type TextStyleOptions } from 'pixi.js';
 import { theme } from './theme';
 import { ease, Tweens } from './tween';
@@ -67,6 +68,8 @@ export class Panel extends Container {
 }
 
 export interface ButtonOptions {
+  /** Nome do efeito em `audio` tocado no clique (padrão 'click'; `null` desliga). */
+  sound?: string | null;
   text: string;
   width?: number;
   height?: number;
@@ -86,9 +89,12 @@ export class Button extends Container {
   private h: number;
   private color: number;
   onClick?: () => void;
+  /** Som do clique; `null` silencia. */
+  sound: string | null;
 
   constructor(opts: ButtonOptions) {
     super();
+    this.sound = opts.sound === undefined ? 'click' : opts.sound;
     this.w = opts.width ?? 160;
     this.h = opts.height ?? 44;
     this.color = opts.color ?? theme.accent;
@@ -105,7 +111,8 @@ export class Button extends Container {
     this.on('pointerdown', () => ((this.pressed = true), this.redraw()));
     this.on('pointerup', () => ((this.pressed = false), this.redraw()));
     this.on('pointertap', () => {
-      if (!this._enabled) return;
+      if (!this._enabled) return audio.play('deny');
+      if (this.sound) audio.play(this.sound);
       Tweens.to(0.25, 0.9, 1, (v) => !this.destroyed && this.scale.set(v), ease.outBack);
       this.onClick?.();
     });
@@ -306,5 +313,54 @@ export class Toasts extends Container {
       c.y = y;
       y += c.height + 8;
     }
+  }
+}
+
+/** Controle deslizante de 0 a 1, arrastável com mouse ou toque. */
+export class Slider extends Container {
+  private track = new Graphics();
+  private fill = new Graphics();
+  private knob = new Graphics();
+  private dragging = false;
+  private _value: number;
+
+  constructor(private w: number, value: number, private onChange: (v: number) => void, private color = theme.accent) {
+    super();
+    this._value = value;
+    this.addChild(this.track, this.fill, this.knob);
+    this.track.roundRect(0, -3, w, 6, 3).fill({ color: theme.panelBorder });
+    this.knob.circle(0, 0, 9).fill({ color: theme.text }).stroke({ width: 2, color });
+    this.eventMode = 'static';
+    this.cursor = 'pointer';
+    this.hitArea = { contains: (x: number, y: number) => x >= -10 && x <= w + 10 && y >= -14 && y <= 14 };
+    const set = (gx: number) => {
+      const local = this.toLocal({ x: gx, y: 0 });
+      this.value = Math.max(0, Math.min(1, local.x / this.w));
+      this.onChange(this._value);
+    };
+    this.on('pointerdown', (e) => {
+      this.dragging = true;
+      set(e.global.x);
+    });
+    this.on('globalpointermove', (e) => this.dragging && set(e.global.x));
+    this.on('pointerup', () => (this.dragging = false));
+    this.on('pointerupoutside', () => (this.dragging = false));
+    this.draw();
+  }
+
+  get value(): number {
+    return this._value;
+  }
+
+  set value(v: number) {
+    this._value = v;
+    this.draw();
+  }
+
+  private draw(): void {
+    const x = this._value * this.w;
+    this.fill.clear();
+    if (x > 0) this.fill.roundRect(0, -3, x, 6, 3).fill({ color: this.color });
+    this.knob.x = x;
   }
 }

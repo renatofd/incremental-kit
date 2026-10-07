@@ -1,8 +1,11 @@
-import { format } from '../../src/core/num';
+import { format, setDefaultNotation } from '../../src/core/num';
 import { GameLoop } from '../../src/core/loop';
 import { SaveManager } from '../../src/core/save';
 import { KitApp } from '../../src/ui/app';
+import { audio } from '../../src/ui/audio';
 import { DebugPanel } from '../../src/ui/hud';
+import { GameMenu } from '../../src/ui/menu';
+import { settings } from '../../src/ui/settings';
 import { Toasts, Tooltip } from '../../src/ui/widgets';
 import { COLORS } from './content';
 import type { GameContext } from './context';
@@ -32,6 +35,20 @@ async function main() {
   kit.overlayLayer.addChild(debug);
   kit.onResize((w) => debug.position.set(w - 276, 16));
 
+  setDefaultNotation(settings.values.notation);
+  settings.onChange((v) => setDefaultNotation(v.notation));
+  const menu = new GameMenu({
+    kit,
+    engine,
+    saves,
+    extraStats: (e) => [
+      ['Runs feitas', String(runs.count)],
+      ['Reboots', String(game.prestige.count(e, 'reboot'))],
+      ['Nós destruídos', format(Number(e.state.flags.kills ?? 0))],
+    ],
+  });
+  audio.startMusic();
+
   let hub: HubScene;
   let run: RunScene;
   const ctx: GameContext = {
@@ -41,6 +58,7 @@ async function main() {
     saves,
     tooltip,
     toasts,
+    menu,
     goToHub: () => {
       if (runs.active) runs.end('quit');
       kit.setScene(hub);
@@ -53,6 +71,7 @@ async function main() {
   engine.events.on('achievement', ({ id }) => {
     const a = engine.def.achievements?.find((x) => x.id === id);
     if (a) toasts.push(`Conquista: ${a.name}`, a.description);
+    audio.play('achievement');
   });
   engine.events.on('unlock', ({ id }) => {
     if (id === 'reboot') toasts.push('Reboot liberado', 'Recomece do zero em troca de Prismas permanentes.', COLORS.prisms);

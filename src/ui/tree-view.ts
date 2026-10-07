@@ -3,6 +3,7 @@ import type { Engine } from '../core/engine';
 import { format } from '../core/num';
 import type { UpgradeDef, UpgradeStatus } from '../core/types';
 import type { Particles } from './fx';
+import { audio } from './audio';
 import { theme } from './theme';
 import { ease, Tweens } from './tween';
 import { label, type Tooltip, type TooltipLine } from './widgets';
@@ -178,9 +179,11 @@ export class TreeView extends Container {
       const level = this.engine.upgradeLevel(id);
       Tweens.to(0.3, 1.35, this.hovered === id ? 1.1 : 1, (s) => !v.root.destroyed && v.root.scale.set(s), ease.outBack);
       this.opts.particles?.burst(v.root.x, v.root.y, this.colorOf(v.def, 'affordable'), repeating ? 6 : 18, 260);
+      audio.play('buy', { pitch: 1 + Math.min(level, 20) * 0.02, volume: repeating ? 0.6 : 1 });
       this.opts.onBuy?.(v.def, level);
       this.refresh();
     } else if (!repeating) {
+      audio.play('deny');
       const x0 = v.root.x;
       Tweens.add(0.25, (k) => (v.root.x = x0 + Math.sin(k * Math.PI * 6) * 5 * (1 - k)), ease.linear, () => (v.root.x = x0));
       this.holding = null;

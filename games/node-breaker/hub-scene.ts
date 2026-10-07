@@ -1,6 +1,7 @@
 import { Container } from 'pixi.js';
 import { format } from '../../src/core/num';
 import { Scene } from '../../src/ui/app';
+import { audio } from '../../src/ui/audio';
 import { Particles } from '../../src/ui/fx';
 import { ResourceBar } from '../../src/ui/hud';
 import { theme } from '../../src/ui/theme';
@@ -21,6 +22,7 @@ export class HubScene extends Scene {
   private startButton: Button;
   private tabMain: Button;
   private tabReboot: Button;
+  private menuButton: Button;
   private side = new Container();
   private minerPanel: Panel;
   private minerInfo = label('', 13, theme.textDim);
@@ -31,6 +33,8 @@ export class HubScene extends Scene {
   private hint = label('', 15, theme.textDim);
   private victory: Panel | null = null;
   private keyHandler = (e: KeyboardEvent) => {
+    if (e.key === 'm' || e.key === 'M') return this.ctx.menu.toggle();
+    if (this.ctx.menu.isOpen) return;
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
       this.ctx.goToRun();
@@ -58,6 +62,7 @@ export class HubScene extends Scene {
 
     this.startButton = new Button({ text: 'INICIAR RUN  (espaço)', width: 280, height: 56, size: 18, color: theme.good, onClick: () => ctx.goToRun() });
     this.tabMain = new Button({ text: 'Rede', width: 110, height: 34, size: 14, onClick: () => this.showTree(false) });
+    this.menuButton = new Button({ text: 'Menu (M)', width: 110, height: 34, size: 14, color: theme.textDim, onClick: () => ctx.menu.toggle() });
     this.tabReboot = new Button({ text: 'Reboot', width: 110, height: 34, size: 14, color: COLORS.prisms, onClick: () => this.showTree(true) });
 
     // Painel de mineradores (gerador com progresso offline).
@@ -82,6 +87,7 @@ export class HubScene extends Scene {
       onClick: () => {
         const gained = prestige.prestige(engine, 'reboot');
         if (gained.gt(0)) {
+          audio.play('prestige');
           ctx.toasts.push(`Reboot! +${format(gained)} Prismas`, 'Gaste na aba Reboot.', COLORS.prisms);
           this.mainTree.focus(true);
           ctx.saves.save();
@@ -91,7 +97,7 @@ export class HubScene extends Scene {
     this.rebootPanel.addChild(rTitle, this.rebootInfo, this.rebootButton);
     this.side.addChild(this.minerPanel, this.rebootPanel);
 
-    this.root.addChild(this.mainTree, this.rebootTree, this.resources, this.side, this.tabMain, this.tabReboot, this.startButton, this.hint);
+    this.root.addChild(this.mainTree, this.rebootTree, this.resources, this.side, this.tabMain, this.tabReboot, this.menuButton, this.startButton, this.hint);
   }
 
   onEnter(): void {
@@ -119,6 +125,7 @@ export class HubScene extends Scene {
     this.startButton.place((w - sideW - 280) / 2, h - 74);
     this.tabMain.place(24, h - 62);
     this.tabReboot.place(142, h - 62);
+    this.menuButton.place(w - sideW - 126, h - 62);
     this.side.position.set(w - sideW, top);
     this.hint.position.set(24, top + 8);
     if (this.victory) this.victory.position.set((w - this.victory.panelWidth) / 2, (h - this.victory.panelHeight) / 2);
