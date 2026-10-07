@@ -91,7 +91,7 @@ describe('custos', () => {
 describe('motor', () => {
   it('aplica modificadores na ordem add, mult, pow', () => {
     const e = new Engine(def);
-    e.add('gold', 1000);
+    e.add('gold', 500);
     expect(e.stat('damage').toNumber()).toBe(5);
     e.buyUpgrade('root');
     expect(e.stat('damage').toNumber()).toBe(6);

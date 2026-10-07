@@ -25,7 +25,8 @@ export function format(value: NumLike, notation: Notation = 'short', digits = 2)
   if (n.sign < 0) return '-' + format(n.neg(), notation, digits);
   if (n.lt(1000)) {
     const v = n.toNumber();
-    return Number.isInteger(v) ? v.toString() : v.toFixed(v < 10 ? digits : v < 100 ? 1 : 0);
+    if (v >= 10 || Number.isInteger(v)) return Math.floor(v).toString();
+    return trimFixed(v, digits);
   }
   const exp = n.log10().floor().toNumber();
   if (!Number.isFinite(exp)) return 'Infinito';

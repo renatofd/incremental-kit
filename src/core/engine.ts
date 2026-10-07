@@ -276,6 +276,7 @@ export class Engine {
     this.state.upgrades[id] = level;
     this.invalidate();
     this.events.emit('upgradeBought', { id, level });
+    this.checkProgress();
     return true;
   }
 
@@ -345,6 +346,7 @@ export class Engine {
     this.state.generators[id] = this.generatorsOwned(id) + n;
     this.invalidate();
     this.events.emit('generatorBought', { id, amount: n, owned: this.state.generators[id] });
+    this.checkProgress();
     return n;
   }
 
