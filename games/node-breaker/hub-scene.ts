@@ -1,6 +1,6 @@
 import { Container } from 'pixi.js';
 import { format } from '../../src/core/num';
-import { Scene } from '../../src/ui/app';
+import { Scene, uiScale } from '../../src/ui/app';
 import { audio } from '../../src/ui/audio';
 import { Particles } from '../../src/ui/fx';
 import { ResourceBar } from '../../src/ui/hud';
@@ -24,6 +24,8 @@ export class HubScene extends Scene {
   private tabReboot: Button;
   private menuButton: Button;
   private side = new Container();
+  /** HUD por cima da árvore, escalado conforme o tamanho da tela. */
+  private hud = new Container();
   private minerPanel: Panel;
   private minerInfo = label('', 13, theme.textDim);
   private minerButton: Button;
@@ -32,6 +34,8 @@ export class HubScene extends Scene {
   private rebootButton: Button;
   private hint = label('', 15, theme.textDim);
   private victory: Panel | null = null;
+  private sideWasOpen = false;
+  private tabsWereOpen = false;
   private keyHandler = (e: KeyboardEvent) => {
     if (e.key === 'm' || e.key === 'M') return this.ctx.menu.toggle();
     if (this.ctx.menu.isOpen) return;
@@ -97,7 +101,8 @@ export class HubScene extends Scene {
     this.rebootPanel.addChild(rTitle, this.rebootInfo, this.rebootButton);
     this.side.addChild(this.minerPanel, this.rebootPanel);
 
-    this.root.addChild(this.mainTree, this.rebootTree, this.resources, this.side, this.tabMain, this.tabReboot, this.menuButton, this.startButton, this.hint);
+    this.hud.addChild(this.resources, this.side, this.tabMain, this.tabReboot, this.menuButton, this.startButton, this.hint);
+    this.root.addChild(this.mainTree, this.rebootTree, this.hud);
   }
 
   onEnter(): void {
@@ -114,21 +119,42 @@ export class HubScene extends Scene {
   }
 
   resize(w: number, h: number): void {
+    // A árvore ocupa a tela inteira; o HUD fica por cima, numa escala que
+    // acompanha o tamanho da janela. O layout do HUD usa unidades lógicas.
+    const k = uiScale(w, h);
+    const W = w / k;
+    const H = h / k;
+    this.hud.scale.set(k);
     const top = 80;
-    const bottom = 90;
+    const bottom = this.tabMain.visible && W < 820 ? 150 : 90;
     const sideW = 256;
+    const sideOpen = this.minerPanel.visible || this.rebootPanel.visible;
+    this.tabsWereOpen = this.tabMain.visible;
     for (const t of [this.mainTree, this.rebootTree]) {
-      t.position.set(0, top);
-      t.setViewport(w - sideW - 16, h - top - bottom);
+      t.position.set(0, 0);
+      t.setViewport(w, h, { top: top * k, bottom: bottom * k, right: sideOpen ? sideW * k : 0, left: 0 });
     }
     this.resources.position.set(24, 16);
-    this.startButton.place((w - sideW - 280) / 2, h - 74);
-    this.tabMain.place(24, h - 62);
-    this.tabReboot.place(142, h - 62);
-    this.menuButton.place(w - sideW - 126, h - 62);
-    this.side.position.set(w - sideW, top);
+    const centerW = sideOpen ? W - sideW : W;
+    const startW = 280;
+    // Em janelas estreitas o botão de iniciar sobe acima das abas.
+    let startX = (centerW - startW) / 2;
+    const tabsEnd = this.tabMain.visible ? 260 : 0;
+    const crowded = startX < tabsEnd;
+    if (crowded) startX = (W - startW) / 2;
+    this.startButton.place(startX, crowded ? H - 132 : H - 74);
+    this.tabMain.place(24, H - 62);
+    this.tabReboot.place(142, H - 62);
+    // Em janelas estreitas o botão de menu sobe para não cobrir o de iniciar.
+    const menuX = W - 126;
+    const overlaps = !crowded && menuX < startX + startW + 8;
+    this.menuButton.place(menuX, overlaps ? 16 : H - 62);
+    this.side.position.set(W - sideW, top);
     this.hint.position.set(24, top + 8);
-    if (this.victory) this.victory.position.set((w - this.victory.panelWidth) / 2, (h - this.victory.panelHeight) / 2);
+    this.hint.style.wordWrap = true;
+    this.hint.style.wordWrapWidth = Math.max(200, centerW - 48);
+    if (this.victory) this.victory.position.set((W - this.victory.panelWidth) / 2, (H - this.victory.panelHeight) / 2);
+    this.sideWasOpen = sideOpen;
   }
 
   update(dt: number): void {
@@ -173,6 +199,11 @@ export class HubScene extends Scene {
           ? 'Clique no Núcleo para comprar seu primeiro upgrade.'
           : '';
 
+    if (this.minerPanel.visible || this.rebootPanel.visible) {
+      if (!this.sideWasOpen) this.resize(this.kit.width, this.kit.height);
+    } else if (this.sideWasOpen) this.resize(this.kit.width, this.kit.height);
+    if (this.tabMain.visible !== this.tabsWereOpen) this.resize(this.kit.width, this.kit.height);
+
     if (engine.isUnlocked('victory') && !engine.state.flags.victorySeen) this.showVictory();
   }
 
@@ -207,7 +238,7 @@ export class HubScene extends Scene {
     const close = new Button({ text: 'Continuar', width: 160, onClick: () => (p.destroy({ children: true }), (this.victory = null)) }).place(24, 160);
     p.addChild(t, body, close);
     this.victory = p;
-    this.root.addChild(p);
+    this.hud.addChild(p);
     this.resize(this.kit.width, this.kit.height);
     Tweens.to(0.5, 0, 1, (v) => (p.alpha = v), ease.outCubic);
     this.ctx.saves.save();

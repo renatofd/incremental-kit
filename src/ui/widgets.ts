@@ -1,3 +1,4 @@
+import { uiScale } from './app';
 import { audio } from './audio';
 import { BitmapText, Container, Graphics, Text, type TextStyleOptions } from 'pixi.js';
 import { theme } from './theme';
@@ -256,12 +257,19 @@ export class Tooltip extends Container {
       .roundRect(0, 0, width, height, 8)
       .fill({ color: theme.panel, alpha: 0.97 })
       .stroke({ width: 1, color: theme.panelBorder });
+    // Trabalha em unidades lógicas e escala junto com o resto do HUD.
     const s = this.screen();
+    const k = uiScale(s.width, s.height);
+    const W = s.width / k;
+    const H = s.height / k;
+    x /= k;
+    y /= k;
     let px = x + 18;
     let py = y + 18;
-    if (px + width > s.width - 8) px = x - width - 18;
-    if (py + height > s.height - 8) py = s.height - height - 8;
-    this.position.set(Math.max(8, px), Math.max(8, py));
+    if (px + width > W - 8) px = x - width - 18;
+    if (py + height > H - 8) py = H - height - 8;
+    this.scale.set(k);
+    this.position.set(Math.max(8, px) * k, Math.max(8, py) * k);
     this.visible = true;
   }
 
@@ -295,13 +303,19 @@ export class Toasts extends Container {
     if (body) c.addChild(b);
     this.addChild(c);
     this.items.unshift(c);
+    // Muitas conquistas juntas não podem cobrir a tela inteira.
+    for (const old of this.items.splice(5)) old.destroy({ children: true });
     this.layout();
     const s = this.screen();
-    Tweens.to(0.35, s.width + 10, s.width - w - 16, (v) => (c.x = v), ease.outCubic);
+    const k = uiScale(s.width, s.height);
+    this.scale.set(k);
+    const W = s.width / k;
+    Tweens.to(0.35, W + 10, W - w - 16, (v) => !c.destroyed && (c.x = v), ease.outCubic);
     setTimeout(() => {
-      Tweens.to(0.3, 1, 0, (v) => (c.alpha = v), ease.linear, () => {
+      if (c.destroyed) return;
+      Tweens.to(0.3, 1, 0, (v) => !c.destroyed && (c.alpha = v), ease.linear, () => {
         this.items = this.items.filter((x) => x !== c);
-        c.destroy({ children: true });
+        if (!c.destroyed) c.destroy({ children: true });
         this.layout();
       });
     }, 3500);

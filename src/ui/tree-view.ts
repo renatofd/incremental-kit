@@ -60,6 +60,7 @@ export class TreeView extends Container {
   private hovered: string | null = null;
   private viewW = 800;
   private viewH = 600;
+  private safe = { left: 0, top: 0, right: 0, bottom: 0 };
   private lastPointer = { x: 0, y: 0 };
 
   constructor(private engine: Engine, private tooltip: Tooltip, opts: TreeViewOptions = {}) {
@@ -77,9 +78,14 @@ export class TreeView extends Container {
   }
 
   /** Área visível da árvore, em coordenadas da tela. */
-  setViewport(width: number, height: number): void {
+  /**
+   * Área de desenho da árvore. `safe` é a margem coberta pelo HUD em cada
+   * lado: a árvore continua desenhada ali, mas `focus` centraliza no resto.
+   */
+  setViewport(width: number, height: number, safe: Partial<Record<'left' | 'top' | 'right' | 'bottom', number>> = {}): void {
     this.viewW = width;
     this.viewH = height;
+    this.safe = { left: 0, top: 0, right: 0, bottom: 0, ...safe };
     this.hit.clear().rect(0, 0, width, height).fill({ color: 0x000000, alpha: 0.001 });
     this.hitArea = new Rectangle(0, 0, width, height);
     this.mask = this.hit;
@@ -95,9 +101,12 @@ export class TreeView extends Container {
     const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
     const spanX = Math.max(...xs) - Math.min(...xs) + this.opts.grid * 2;
     const spanY = Math.max(...ys) - Math.min(...ys) + this.opts.grid * 2;
-    const scale = Math.max(0.5, Math.min(1.2, Math.min(this.viewW / spanX, this.viewH / spanY)));
-    const tx = this.viewW / 2 - cx * scale;
-    const ty = this.viewH / 2 - cy * scale;
+    const { left, top, right, bottom } = this.safe;
+    const freeW = Math.max(100, this.viewW - left - right);
+    const freeH = Math.max(100, this.viewH - top - bottom);
+    const scale = Math.max(0.35, Math.min(1.2, Math.min(freeW / spanX, freeH / spanY)));
+    const tx = left + freeW / 2 - cx * scale;
+    const ty = top + freeH / 2 - cy * scale;
     if (!animated) {
       this.world.scale.set(scale);
       this.world.position.set(tx, ty);
