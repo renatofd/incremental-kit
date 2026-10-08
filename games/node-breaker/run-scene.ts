@@ -1,6 +1,7 @@
 import { BitmapText, Container, FederatedPointerEvent, Graphics } from 'pixi.js';
 import { D, format } from '../../src/core/num';
 import type { RunSummary } from '../../src/modules/runs';
+import { audio } from '../../src/ui/audio';
 import { Scene } from '../../src/ui/app';
 import { FloatingText, Particles, ScreenShake } from '../../src/ui/fx';
 import { theme } from '../../src/ui/theme';
@@ -66,12 +67,15 @@ export class RunScene extends Scene {
     stage.on('globalpointermove', move);
     this.unsubs.push(() => stage.off('globalpointermove', move));
     const key = (e: KeyboardEvent) => {
+      if (e.key === 'm' || e.key === 'M') return this.ctx.menu.toggle();
+      if (this.ctx.menu.isOpen) return;
       if (e.key === 'Escape' && runs.active) runs.end('quit');
       if ((e.key === ' ' || e.key === 'Enter') && this.summary) this.startNext();
     };
     window.addEventListener('keydown', key);
     this.unsubs.push(() => window.removeEventListener('keydown', key));
-    this.unsubs.push(runs.events.on('end', (s) => this.showSummary(s)));
+    this.unsubs.push(runs.events.on('end', (s) => (audio.play('runEnd'), this.showSummary(s))));
+    this.unsubs.push(runs.events.on('start', () => audio.play('runStart')));
     this.closeSummary();
     this.particles.clear();
     this.lines = [];
@@ -141,11 +145,13 @@ export class RunScene extends Scene {
           this.attackFlash = 1;
           break;
         case 'hit':
+          audio.play('hit', { volume: 0.6 });
           if (e.crit) this.floaters.spawn('CRIT', e.node.x, e.node.y - e.node.r - 8, theme.warning, 0.8);
           break;
         case 'kill': {
           const color = NODE_COLOR[e.node.kind];
           const big = e.node.kind !== 'normal';
+          audio.play(big ? 'bigKill' : 'kill', { pitch: big ? 1 : 0.9 + Math.random() * 0.3 });
           this.particles.burst(e.node.x, e.node.y, color, big ? 40 : 14, big ? 380 : 240, big ? 0.6 : 0.4);
           this.floaters.spawn(`+${format(D(e.bits))}`, e.node.x, e.node.y, COLORS.bits);
           if (e.cores > 0) this.floaters.spawn(`+${format(D(e.cores))} Núcleo`, e.node.x, e.node.y - 24, COLORS.cores, 1.1);
@@ -154,6 +160,7 @@ export class RunScene extends Scene {
           break;
         }
         case 'chain':
+          audio.play('zap');
           this.lines.push({ x1: e.fromX, y1: e.fromY, x2: e.toX, y2: e.toY, life: 0.25, color: 0xc9f2ff, jagged: true });
           break;
         case 'shot':

@@ -1,4 +1,5 @@
 import { BitmapText, Container, Graphics, Particle, ParticleContainer, Texture, type Renderer } from 'pixi.js';
+import { settings } from './settings';
 import { theme } from './theme';
 
 interface LiveParticle {
@@ -36,7 +37,9 @@ export class Particles extends Container {
   }
 
   burst(x: number, y: number, color: number, count = 12, speed = 220, size = 0.35, life = 0.6): void {
-    for (let i = 0; i < count; i++) {
+    // A intensidade de efeitos do menu de opções reduz a quantidade de partículas.
+    const n = Math.round(count * settings.values.effects);
+    for (let i = 0; i < n; i++) {
       if (this.live.length >= this.maxParticles) return;
       let lp = this.free.pop();
       if (!lp) {
@@ -151,7 +154,8 @@ export class ScreenShake {
   y = 0;
 
   add(amount: number): void {
-    this.trauma = Math.min(1, this.trauma + amount);
+    if (!settings.values.screenShake) return;
+    this.trauma = Math.min(1, this.trauma + amount * settings.values.effects);
   }
 
   update(dt: number, maxOffset = 10): void {

@@ -14,7 +14,7 @@ npm run sim        # simula o jogo com um bot e mostra o ritmo
 npm run build      # build de produção em dist/
 ```
 
-No jogo, **F1** (ou a tecla `) abre o painel de debug: dar recursos, acelerar o tempo, pular uma hora e apagar o save.
+No jogo, **M** abre o menu (opções, estatísticas, conquistas e save) e **F1** (ou a tecla `) abre o painel de debug: dar recursos, acelerar o tempo, pular uma hora e apagar o save.
 
 ## Estrutura
 
@@ -64,6 +64,10 @@ O núcleo (`src/core`, `src/modules`, `src/sim`) não importa o PixiJS. A mesma 
 | `Particles` (ParticleContainer), `FloatingText` (BitmapText com pool), `ScreenShake` | `ui/fx.ts` |
 | `ResourceBar` e `DebugPanel` | `ui/hud.ts` |
 | Tweens e easing sem dependências | `ui/tween.ts` |
+| `audio`: efeitos e música sintetizados com Web Audio (sem arquivos), volumes por canal | `ui/audio.ts` |
+| `settings`: volumes, intensidade de efeitos, tremida de tela e notação, salvos à parte do jogo | `ui/settings.ts` |
+| `GameMenu`: opções, estatísticas, conquistas e save (exportar, importar, apagar) | `ui/menu.ts` |
+| `Slider` | `ui/widgets.ts` |
 
 Textos que mudam todo frame usam `BitmapText`, e partículas usam `ParticleContainer`, que são os caminhos mais rápidos do PixiJS.
 

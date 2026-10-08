@@ -5,3 +5,6 @@ export * from './widgets';
 export * from './fx';
 export * from './tree-view';
 export * from './hud';
+export * from './settings';
+export * from './audio';
+export * from './menu';

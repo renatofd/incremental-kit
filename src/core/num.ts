@@ -19,8 +19,15 @@ export type Notation = 'short' | 'scientific' | 'engineering';
 
 const SHORT_SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
 
+let defaultNotation: Notation = 'short';
+
+/** Notação usada quando format() é chamado sem uma (o menu de opções muda isto). */
+export function setDefaultNotation(n: Notation): void {
+  defaultNotation = n;
+}
+
 /** Formata um número para exibição: 1.234, 12,3K, 4,56e78. */
-export function format(value: NumLike, notation: Notation = 'short', digits = 2): string {
+export function format(value: NumLike, notation: Notation = defaultNotation, digits = 2): string {
   const n = D(value);
   if (n.sign < 0) return '-' + format(n.neg(), notation, digits);
   if (n.lt(1000)) {
