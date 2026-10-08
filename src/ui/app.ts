@@ -20,6 +20,15 @@ export abstract class Scene {
   resize(_width: number, _height: number): void {}
 }
 
+/**
+ * Escala da interface para o tamanho da tela. As cenas desenham o HUD num
+ * Container com essa escala e fazem o layout em `width / escala`, então os
+ * painéis encolhem em telas pequenas e crescem em telas grandes.
+ */
+export function uiScale(width: number, height: number, baseW = 1100, baseH = 680, min = 0.55, max = 1.6): number {
+  return Math.max(min, Math.min(max, width / baseW, height / baseH));
+}
+
 export interface KitAppOptions {
   canvas: HTMLCanvasElement;
   background?: number;

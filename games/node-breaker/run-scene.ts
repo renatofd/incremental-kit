@@ -2,7 +2,7 @@ import { BitmapText, Container, FederatedPointerEvent, Graphics } from 'pixi.js'
 import { D, format } from '../../src/core/num';
 import type { RunSummary } from '../../src/modules/runs';
 import { audio } from '../../src/ui/audio';
-import { Scene } from '../../src/ui/app';
+import { Scene, uiScale } from '../../src/ui/app';
 import { FloatingText, Particles, ScreenShake } from '../../src/ui/fx';
 import { theme } from '../../src/ui/theme';
 import { ease, Tweens } from '../../src/ui/tween';
@@ -49,6 +49,7 @@ export class RunScene extends Scene {
   private autoTimer = -1;
   private unsubs: Array<() => void> = [];
   private arenaScale = 1;
+  private hud = new Container();
 
   constructor(private ctx: GameContext) {
     super();
@@ -56,7 +57,8 @@ export class RunScene extends Scene {
     this.coresText = numberLabel('', 22, COLORS.cores, true);
     this.particles = new Particles(ctx.kit.app.renderer);
     this.arenaRoot.addChild(this.grid, this.nodesGfx, this.fxGfx, this.particles, this.floaters, this.cursorGfx);
-    this.root.addChild(this.arenaRoot, this.timerBar, this.timerText, this.bitsText, this.coresText, this.hint);
+    this.hud.addChild(this.timerBar, this.timerText, this.bitsText, this.coresText, this.hint);
+    this.root.addChild(this.arenaRoot, this.hud);
     this.drawGrid();
   }
 
@@ -89,19 +91,27 @@ export class RunScene extends Scene {
   }
 
   resize(w: number, h: number): void {
-    const top = 70;
+    const k = uiScale(w, h);
+    const W = w / k;
+    const H = h / k;
+    this.hud.scale.set(k);
+    // Em tela estreita o timer desce para uma segunda linha do HUD.
+    const narrow = W < 760;
+    const top = (narrow ? 96 : 70) * k;
     const scale = Math.min((w - 32) / ARENA_W, (h - top - 16) / ARENA_H);
     this.arenaScale = scale;
     this.arenaRoot.scale.set(scale);
     this.arenaRoot.position.set((w - ARENA_W * scale) / 2, top + (h - top - 16 - ARENA_H * scale) / 2);
-    const barW = Math.min(500, w - 340);
+    const barW = narrow ? W - 48 - 70 : Math.min(500, W - 340);
+    const barX = narrow ? 24 : (W - barW) / 2;
+    const barY = narrow ? 80 : 30;
     this.timerBar.resizeBar(barW);
-    this.timerBar.position.set((w - barW) / 2, 30);
-    this.timerText.position.set((w - barW) / 2 + barW + 12, 22);
+    this.timerBar.position.set(barX, barY);
+    this.timerText.position.set(barX + barW + 12, barY - 8);
     this.bitsText.position.set(24, 20);
     this.coresText.position.set(24, 44);
-    this.hint.position.set(w - this.hint.width - 20, 24);
-    if (this.summary) this.summary.position.set((w - this.summary.panelWidth) / 2, (h - this.summary.panelHeight) / 2);
+    this.hint.position.set(W - this.hint.width - 20, 24);
+    if (this.summary) this.summary.position.set((W - this.summary.panelWidth) / 2, (H - this.summary.panelHeight) / 2);
   }
 
   private setCursor(sx: number, sy: number): void {
@@ -255,7 +265,7 @@ export class RunScene extends Scene {
     const again = new Button({ text: auto ? 'Nova run (auto)' : 'Nova run', width: 150, color: theme.good, onClick: () => this.startNext() }).place(186, 180);
     p.addChild(back, again);
     this.summary = p;
-    this.root.addChild(p);
+    this.hud.addChild(p);
     this.resize(this.kit.width, this.kit.height);
     Tweens.to(0.3, 0, 1, (v) => !p.destroyed && ((p.alpha = v), p.scale.set(1, 0.9 + 0.1 * v)), ease.outBack);
     this.autoTimer = auto ? 2 : -1;
