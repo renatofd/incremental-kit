@@ -96,6 +96,13 @@ export class TreeView extends Container {
     this.mask = this.hit;
   }
 
+  /** Centro de um nó em coordenadas globais (para tutoriais), ou null se ele não aparece. */
+  nodeGlobalPosition(id: string): { x: number; y: number } | null {
+    const v = this.views.get(id);
+    if (!v || !v.root.visible || !this.visible) return null;
+    return v.root.getGlobalPosition();
+  }
+
   /** Centraliza a câmera nos nós visíveis. */
   focus(animated = false): void {
     const pts = [...this.views.values()].filter((v) => v.root.visible).map((v) => v.root.position);

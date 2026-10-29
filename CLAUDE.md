@@ -17,7 +17,7 @@ Este repositório é um template de jogos incrementais. Quando ele for usado com
 | --- | --- |
 | `src/core` | Motor (`engine.ts`), números grandes (`num.ts`), modificadores, save/offline, loop de passo fixo, eventos |
 | `src/modules` | Prestígio, runs curtas, automação, eventos aleatórios |
-| `src/ui` | `KitApp`/`Scene`, `Button` (selo "!" com `badge`), `Badge`, `Panel`, `ProgressBar`, `Tooltip`, `Toasts`, `TreeView`, `Particles`, `FloatingText`, `ScreenShake`, `ResourceBar`, `DebugPanel`, `GameMenu`, `Slider`, `audio`, `settings` |
+| `src/ui` | `KitApp`/`Scene`, `Button` (selo "!" com `badge`), `Badge`, `Panel`, `ProgressBar`, `Tooltip`, `Toasts`, `TreeView`, `Particles`, `FloatingText`, `ScreenShake`, `ResourceBar`, `DebugPanel`, `GameMenu`, `Slider`, `TutorialHand`, `audio`, `settings` |
 | `src/sim` | Simulador headless de balanceamento, com perfis de jogador (`simulateProfiles`, `DEFAULT_PROFILES`) |
 | `games/node-breaker` | Jogo de exemplo completo: use como referência e ponto de partida |
 | `tools/simulate.ts` | Bot que joga o exemplo e mede o ritmo |
@@ -38,6 +38,26 @@ Este repositório é um template de jogos incrementais. Quando ele for usado com
 - **Pausar a run**: `runs.hold = () => condição` congela o tempo da run (tutorial, popup esperando o jogador).
 - **Save desligado**: `saves.enabled = false` em modos de teste ou debug que não podem tocar no save do jogador.
 - **Juice da árvore**: `TreeView` já treme o tooltip ao abrir e solta uma onda no formato do nó a cada compra; desligue com `wobble: false` ou `buyWave: false`. Se mudar o formato dos nós, mude `nodePath` para a onda acompanhar.
+
+## Tutorial guiado
+
+Todo jogo novo tem um tutorial curto, no padrão do Node Breaker (`games/node-breaker/tutorial.ts`):
+
+- A etapa fica no save, em `flags.tutor`, com as constantes num arquivo pequeno sem tela (`TUTOR`, `tutorStep`). Saves sem a flag e o simulador contam como tutorial concluído; o `main.ts` só põe a etapa inicial quando `runs.count` é 0.
+- A 1ª run começa direto, sem passar pelo hub, e tem uma recompensa garantida que paga a primeira compra. Use `runs.hold` para congelar a run até o jogador pegá-la.
+- O resultado da 1ª run só mostra o botão de voltar ao hub. No hub, a `TutorialHand` (`src/ui/tutorial-hand.ts`) aponta a primeira compra e depois o botão de nova run, e some quando o jogador faz cada coisa.
+
+## Checklist de retenção
+
+Confira em todo jogo novo feito com o kit:
+
+- [ ] A 1ª run dura o tempo todo, mesmo se o jogador não clicar.
+- [ ] A 1ª recompensa paga a 1ª compra.
+- [ ] Há uma meta visível durante a run (ex.: barra de progresso com o nome do próximo chefe).
+- [ ] "!" em tudo que tem algo para comprar (`Button.badge` com `hasAffordable`).
+- [ ] Sem anúncios intersticiais; anúncio com recompensa só depois da 10ª run.
+- [ ] Em tela de pé, árvore, popups, botões e números grandes (2×).
+- [ ] Tela clara: nada de cenário escuro demais.
 
 ## Antes de entregar
 

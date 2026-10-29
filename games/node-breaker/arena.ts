@@ -1,5 +1,6 @@
 import type { Engine, GameModule, TickContext } from '../../src/core/engine';
 import type { RunModule } from '../../src/modules/runs';
+import { TUTOR, TUTOR_BITS, TUTOR_GIFT_TIME, tutorStep } from './tutorial';
 
 /**
  * Lógica da arena, sem nenhuma dependência de desenho. A cena só lê
@@ -7,7 +8,8 @@ import type { RunModule } from '../../src/modules/runs';
  * mesma lógica com um bot no lugar do mouse.
  */
 
-export type NodeKind = 'normal' | 'big' | 'gold' | 'boss';
+/** `gift` é o presente do tutorial: parado, frágil e paga a primeira compra. */
+export type NodeKind = 'normal' | 'big' | 'gold' | 'boss' | 'gift';
 
 export interface ArenaNode {
   id: number;
@@ -51,6 +53,7 @@ const KIND = {
   big: { hp: 5, value: 6, r: 30 },
   gold: { hp: 3, value: 2, r: 20 },
   boss: { hp: 80, value: 40, r: 56 },
+  gift: { hp: 0.01, value: 0, r: 34 },
 } as const;
 
 export class ArenaModule implements GameModule {
@@ -65,15 +68,27 @@ export class ArenaModule implements GameModule {
   private attackTimer = 0;
   private droneTimers: number[] = [];
   private bossSpawned = false;
+  private giftSpawned = false;
   private time = 0;
   rng: () => number;
 
   constructor(private runs: RunModule, seed = Date.now()) {
     this.rng = mulberry32(seed);
+    // Presente do tutorial na arena: o tempo da run para até o jogador pegá-lo.
+    runs.hold = () => this.tutorialHold;
+  }
+
+  /** Há presente do tutorial esperando o jogador. */
+  get tutorialHold(): boolean {
+    return this.nodes.some((n) => n.kind === 'gift');
   }
 
   init(engine: Engine): void {
-    this.runs.events.on('start', () => this.resetArena(engine));
+    this.runs.events.on('start', () => {
+      // Começar a 2ª run (vinda da árvore) encerra o tutorial.
+      if (tutorStep(engine.state) === TUTOR.toHub) engine.state.flags.tutor = TUTOR.done;
+      this.resetArena(engine);
+    });
     this.runs.events.on('end', () => {
       this.nodes = [];
       this.drones = [];
@@ -86,6 +101,7 @@ export class ArenaModule implements GameModule {
     this.spawnTimer = 0;
     this.attackTimer = 0;
     this.bossSpawned = false;
+    this.giftSpawned = false;
     this.droneTimers = [];
     // Começa com alguns nós para a run não abrir vazia.
     const initial = Math.min(6, engine.statNumber('spawn.max'));
@@ -102,6 +118,8 @@ export class ArenaModule implements GameModule {
   }
 
   private updateSpawns(engine: Engine, dt: number): void {
+    this.spawnGift(engine);
+    if (this.tutorialHold) return;
     const max = engine.statNumber('spawn.max');
     this.spawnTimer += dt * engine.statNumber('spawn.rate');
     while (this.spawnTimer >= 1) {
@@ -135,6 +153,11 @@ export class ArenaModule implements GameModule {
       angle: this.rng() * Math.PI,
       spin: (this.rng() - 0.5) * 2,
     };
+    if (kind === 'gift') {
+      n.x = ARENA_W / 2;
+      n.y = ARENA_H / 2;
+      n.vx = n.vy = n.spin = 0;
+    }
     if (kind === 'boss') {
       n.x = ARENA_W / 2;
       n.y = ARENA_H / 2;
@@ -143,6 +166,12 @@ export class ArenaModule implements GameModule {
     this.nodes.push(n);
     this.events.push({ type: 'spawn', node: n });
     return n;
+  }
+
+  private spawnGift(engine: Engine): void {
+    if (this.giftSpawned || this.runs.elapsed < TUTOR_GIFT_TIME || tutorStep(engine.state) !== TUTOR.firstRun) return;
+    this.giftSpawned = true;
+    this.spawn(engine, 'gift');
   }
 
   private moveNodes(dt: number): void {
@@ -199,7 +228,9 @@ export class ArenaModule implements GameModule {
     if (n.hp > 0) return;
     this.nodes = this.nodes.filter((x) => x !== n);
     const k = KIND[n.kind];
-    const bits = engine.gain('bits', engine.stat('node.value').mul(k.value), 'arena').toNumber();
+    const value = n.kind === 'gift' ? TUTOR_BITS : engine.stat('node.value').mul(k.value);
+    const bits = engine.gain('bits', value, 'arena').toNumber();
+    if (n.kind === 'gift') engine.state.flags.tutor = TUTOR.toHub;
     let cores = 0;
     if (n.kind === 'gold') cores = engine.gain('cores', 1, 'arena').toNumber();
     if (n.kind === 'boss') {

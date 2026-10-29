@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createGame } from '../games/node-breaker/game';
+import { TUTOR, TUTOR_BITS, tutorStep } from '../games/node-breaker/tutorial';
 import { buyCheapestUpgrade, formatProfileTable, simulate, simulateProfiles, type SimProfile } from '../src/sim/simulator';
 
 describe('Node Breaker (jogo de exemplo)', () => {
@@ -58,5 +59,39 @@ describe('Node Breaker (jogo de exemplo)', () => {
     expect(results[0].result.walls).toEqual([{ from: 1, to: 400 }]);
     expect(formatProfileTable(results, [{ id: 'x', label: 'X' }])).toContain('0m01s');
     expect(simulate({ step() {}, done: () => true }, { maxSeconds: 10, dt: 1 }).walls).toEqual([]);
+  });
+
+  it('tutorial: o presente congela a 1ª run e paga a primeira compra', () => {
+    const { engine, runs, arena } = createGame(5);
+    engine.state.flags.tutor = TUTOR.firstRun;
+    runs.start();
+    arena.cursor.inside = false;
+    for (let i = 0; i < 60 * 20; i++) engine.tick(1 / 60);
+    const gift = arena.nodes.find((n) => n.kind === 'gift');
+    expect(gift).toBeDefined();
+    expect(runs.active).toBe(true);
+    expect(runs.elapsed).toBeLessThan(2.1);
+    const count = arena.nodes.length;
+    for (let i = 0; i < 60 * 5; i++) engine.tick(1 / 60);
+    expect(arena.nodes.length).toBe(count);
+
+    Object.assign(arena.cursor, { x: gift!.x, y: gift!.y, inside: true });
+    for (let i = 0; i < 60 && arena.tutorialHold; i++) engine.tick(1 / 60);
+    expect(arena.tutorialHold).toBe(false);
+    expect(tutorStep(engine.state)).toBe(TUTOR.toHub);
+    expect(engine.amount('bits').gte(TUTOR_BITS)).toBe(true);
+    expect(engine.upgradeStatus('core')).toBe('affordable');
+    for (let i = 0; i < 60 * 30 && runs.active; i++) engine.tick(1 / 60);
+    expect(runs.active).toBe(false);
+    runs.start();
+    expect(tutorStep(engine.state)).toBe(TUTOR.done);
+  });
+
+  it('sem a flag (saves antigos e simulador) não há tutorial', () => {
+    const { engine, runs, arena } = createGame(5);
+    expect(tutorStep(engine.state)).toBe(TUTOR.done);
+    runs.start();
+    for (let i = 0; i < 60 * 5; i++) engine.tick(1 / 60);
+    expect(arena.nodes.some((n) => n.kind === 'gift')).toBe(false);
   });
 });

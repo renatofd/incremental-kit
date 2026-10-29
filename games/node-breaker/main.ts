@@ -12,6 +12,7 @@ import type { GameContext } from './context';
 import { createGame } from './game';
 import { HubScene } from './hub-scene';
 import { RunScene } from './run-scene';
+import { TUTOR, tutorStep } from './tutorial';
 
 async function main() {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -25,6 +26,8 @@ async function main() {
   const offline = saves.load();
   // Uma run interrompida (aba fechada) não continua: volta para a árvore.
   if (runs.active) runs.end('quit');
+  // Jogador novo começa o tutorial; quem já jogou (save sem a flag) pula.
+  if (engine.state.flags.tutor === undefined) engine.state.flags.tutor = runs.count > 0 ? TUTOR.done : TUTOR.firstRun;
 
   const loop = new GameLoop(engine, { tickRate: 60 });
   const tooltip = new Tooltip(() => kit.app.screen);
@@ -78,7 +81,8 @@ async function main() {
     if (id === 'miners') toasts.push('Mineradores liberados', 'Eles geram Bits até com o jogo fechado.', COLORS.bits);
   });
 
-  kit.setScene(hub);
+  // A 1ª run começa direto, sem passar pela árvore.
+  kit.setScene(tutorStep(engine.state) === TUTOR.firstRun ? run : hub);
   loop.start();
 
   if (offline && offline.seconds > 60) {
