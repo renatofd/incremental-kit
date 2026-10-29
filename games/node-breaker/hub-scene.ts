@@ -7,10 +7,12 @@ import { Particles } from '../../src/ui/fx';
 import { ResourceBar } from '../../src/ui/hud';
 import { theme } from '../../src/ui/theme';
 import { TreeView } from '../../src/ui/tree-view';
+import { TutorialHand } from '../../src/ui/tutorial-hand';
 import { ease, Tweens } from '../../src/ui/tween';
 import { Button, label, Panel } from '../../src/ui/widgets';
 import { COLORS } from './content';
 import type { GameContext } from './context';
+import { TUTOR, tutorStep } from './tutorial';
 
 /** Tela entre runs: árvore de upgrades, mineradores, reboot e o botão de iniciar. */
 export class HubScene extends Scene {
@@ -34,6 +36,8 @@ export class HubScene extends Scene {
   private rebootInfo = label('', 13, theme.textDim, { wordWrap: true, wordWrapWidth: 212 });
   private rebootButton: Button;
   private hint = label('', 15, theme.textDim);
+  /** Mãozinha do tutorial: aponta o Núcleo e depois o botão de nova run. */
+  private hand = new TutorialHand();
   private victory: Panel | null = null;
   private sideWasOpen = false;
   private tabsWereOpen = false;
@@ -102,7 +106,7 @@ export class HubScene extends Scene {
     this.rebootPanel.addChild(rTitle, this.rebootInfo, this.rebootButton);
     this.side.addChild(this.minerPanel, this.rebootPanel);
 
-    this.hud.addChild(this.resources, this.side, this.tabMain, this.tabReboot, this.menuButton, this.startButton, this.hint);
+    this.hud.addChild(this.resources, this.side, this.tabMain, this.tabReboot, this.menuButton, this.startButton, this.hint, this.hand);
     this.root.addChild(this.mainTree, this.rebootTree, this.hud);
   }
 
@@ -209,6 +213,23 @@ export class HubScene extends Scene {
     if (this.tabMain.visible !== this.tabsWereOpen) this.resize(this.kit.width, this.kit.height);
 
     if (engine.isUnlocked('victory') && !engine.state.flags.victorySeen) this.showVictory();
+    this.updateHand(dt);
+  }
+
+  /** Tutorial: Núcleo primeiro, depois o botão de nova run. Some quando o jogador faz cada coisa. */
+  private updateHand(dt: number): void {
+    const { engine } = this.ctx.game;
+    const W = this.kit.width / this.hud.scale.x;
+    const core = engine.upgradeLevel('core') === 0 ? this.mainTree.nodeGlobalPosition('core') : null;
+    if (tutorStep(engine.state) !== TUTOR.toHub || this.ctx.menu.isOpen || this.showingReboot) this.hand.hide();
+    else if (core) {
+      const p = this.hud.toLocal(core);
+      this.hand.pointAt(p.x, p.y + 10, 'Compre o Núcleo', false, W);
+    } else if (engine.upgradeLevel('core') > 0) {
+      this.hand.pointAt(this.startButton.x, this.startButton.y - 30, 'Comece outra run', true, W);
+    } else this.hand.hide();
+    if (this.hand.pointing) this.hint.text = '';
+    this.hand.update(dt);
   }
 
   private showTree(reboot: boolean): void {

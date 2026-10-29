@@ -68,8 +68,19 @@ O núcleo (`src/core`, `src/modules`, `src/sim`) não importa o PixiJS. A mesma 
 | `settings`: volumes, intensidade de efeitos, tremida de tela e notação, salvos à parte do jogo | `ui/settings.ts` |
 | `GameMenu`: opções, estatísticas, conquistas e save (exportar, importar, apagar) | `ui/menu.ts` |
 | `Slider` | `ui/widgets.ts` |
+| `TutorialHand`: mãozinha que aponta um alvo e "toca" em loop, com frase que encolhe para caber e pode vir de cima | `ui/tutorial-hand.ts` |
 
 Textos que mudam todo frame usam `BitmapText`, e partículas usam `ParticleContainer`, que são os caminhos mais rápidos do PixiJS.
+
+## Tutorial guiado
+
+O Node Breaker mostra o padrão de tutorial do kit. A etapa fica no save (`flags.tutor`, constantes em `games/node-breaker/tutorial.ts`):
+
+1. A 1ª run começa direto. Depois de 2 segundos aparece um nó de presente no centro da arena; enquanto ele estiver lá, `runs.hold` congela o tempo e nenhum nó novo nasce. Destruí-lo dá 10 Bits, que pagam o Núcleo.
+2. O resultado da 1ª run só tem o botão "Árvore". No hub, a mãozinha aponta o Núcleo e, depois da compra, o botão de nova run.
+3. Iniciar a 2ª run encerra o tutorial. Saves antigos (sem a flag) e o simulador pulam tudo.
+
+O `CLAUDE.md` traz também um checklist de retenção para conferir em jogos novos.
 
 ## Como criar um jogo novo
 

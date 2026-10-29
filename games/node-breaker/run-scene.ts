@@ -7,16 +7,19 @@ import { Scene, uiScale } from '../../src/ui/app';
 import { FloatingText, Particles, ScreenShake } from '../../src/ui/fx';
 import { theme } from '../../src/ui/theme';
 import { ease, Tweens } from '../../src/ui/tween';
+import { TutorialHand } from '../../src/ui/tutorial-hand';
 import { Button, label, numberLabel, Panel, ProgressBar } from '../../src/ui/widgets';
 import { ARENA_H, ARENA_W, type ArenaNode } from './arena';
 import { COLORS } from './content';
 import type { GameContext } from './context';
+import { TUTOR, tutorStep } from './tutorial';
 
 const NODE_COLOR: Record<ArenaNode['kind'], number> = {
   normal: 0x4cc9f0,
   big: 0x7b8cff,
   gold: COLORS.cores,
   boss: 0xf25f5c,
+  gift: 0xffd166,
 };
 
 interface Line {
@@ -51,6 +54,9 @@ export class RunScene extends Scene {
   private unsubs: Array<() => void> = [];
   private arenaScale = 1;
   private hud = new Container();
+  /** Mãozinha do tutorial: aponta o presente e o botão de voltar à árvore. */
+  private hand = new TutorialHand();
+  private backButton: Button | null = null;
 
   constructor(private ctx: GameContext) {
     super();
@@ -58,7 +64,7 @@ export class RunScene extends Scene {
     this.coresText = numberLabel('', 22, COLORS.cores, true);
     this.particles = new Particles(ctx.kit.app.renderer);
     this.arenaRoot.addChild(this.grid, this.nodesGfx, this.fxGfx, this.particles, this.floaters, this.cursorGfx);
-    this.hud.addChild(this.timerBar, this.timerText, this.bitsText, this.coresText, this.hint);
+    this.hud.addChild(this.timerBar, this.timerText, this.bitsText, this.coresText, this.hint, this.hand);
     this.root.addChild(this.arenaRoot, this.hud);
     this.drawGrid();
   }
@@ -72,8 +78,9 @@ export class RunScene extends Scene {
     const key = (e: KeyboardEvent) => {
       if (e.key === 'm' || e.key === 'M') return this.ctx.menu.toggle();
       if (this.ctx.menu.isOpen) return;
-      if (e.key === 'Escape' && runs.active) runs.end('quit');
-      if ((e.key === ' ' || e.key === 'Enter') && this.summary) this.startNext();
+      // A 1ª run do tutorial não pode ser encerrada, e o resultado guiado só volta à árvore.
+      if (e.key === 'Escape' && runs.active && tutorStep(this.ctx.game.engine.state) !== TUTOR.firstRun) runs.end('quit');
+      if ((e.key === ' ' || e.key === 'Enter') && this.summary && !this.guided()) this.startNext();
     };
     window.addEventListener('keydown', key);
     this.unsubs.push(() => window.removeEventListener('keydown', key));
@@ -143,10 +150,35 @@ export class RunScene extends Scene {
     this.drawNodes();
     this.drawEffects(dt);
     this.drawCursor(dt, engine.statNumber('cursor.radius'), arena.cursor.inside && runs.active);
+    this.hint.visible = tutorStep(engine.state) !== TUTOR.firstRun;
+    this.updateHand(dt);
     if (this.autoTimer > 0) {
       this.autoTimer -= dt;
       if (this.autoTimer <= 0) this.startNext();
     }
+  }
+
+  /** Tutorial: aponta o presente na arena e, no resultado, o botão de voltar à árvore. */
+  private updateHand(dt: number): void {
+    const { arena } = this.ctx.game;
+    const W = this.kit.width / this.hud.scale.x;
+    const gift = arena.nodes.find((n) => n.kind === 'gift');
+    if (gift) {
+      const p = this.hud.toLocal(this.arenaRoot.toGlobal({ x: gift.x, y: gift.y }));
+      this.hand.pointAt(p.x, p.y + 20, 'Passe o mouse no presente', false, W);
+    } else if (this.summary && this.backButton && this.guided()) {
+      const b = this.backButton.getGlobalPosition();
+      const p = this.hud.toLocal(b);
+      this.hand.pointAt(p.x, p.y + 16, '', false, W);
+    } else this.hand.hide();
+    // Por cima do resultado, que entra no HUD depois.
+    if (this.hand.parent === this.hud) this.hud.addChild(this.hand);
+    this.hand.update(dt);
+  }
+
+  /** O tutorial ainda guia o jogador de volta à árvore (sem "Nova run"). */
+  private guided(): boolean {
+    return tutorStep(this.ctx.game.engine.state) < TUTOR.done;
   }
 
   private consumeEvents(): void {
@@ -193,7 +225,7 @@ export class RunScene extends Scene {
     const g = this.nodesGfx.clear();
     for (const n of this.ctx.game.arena.nodes) {
       const color = NODE_COLOR[n.kind];
-      const sides = n.kind === 'boss' ? 8 : n.kind === 'big' ? 6 : 4;
+      const sides = n.kind === 'boss' ? 8 : n.kind === 'big' || n.kind === 'gift' ? 6 : 4;
       const pts: number[] = [];
       for (let i = 0; i < sides; i++) {
         const a = n.angle + (i / sides) * Math.PI * 2;
@@ -262,19 +294,24 @@ export class RunScene extends Scene {
     total.position.set(24, y + 4);
     p.addChild(total);
     const auto = engine.statNumber('auto.run') > 0;
-    const back = new Button({ text: 'Árvore', width: 150, badge: hasAffordable(engine, ['main', 'reboot']), onClick: () => this.ctx.goToHub() }).place(24, 180);
+    // Tutorial: só o botão de voltar à árvore, centralizado.
+    const guided = this.guided();
+    const back = new Button({ text: 'Árvore', width: 150, badge: hasAffordable(engine, ['main', 'reboot']), onClick: () => this.ctx.goToHub() }).place(guided ? 105 : 24, 180);
     const again = new Button({ text: auto ? 'Nova run (auto)' : 'Nova run', width: 150, color: theme.good, onClick: () => this.startNext() }).place(186, 180);
+    again.visible = !guided;
     p.addChild(back, again);
+    this.backButton = back;
     this.summary = p;
     this.hud.addChild(p);
     this.resize(this.kit.width, this.kit.height);
     Tweens.to(0.3, 0, 1, (v) => !p.destroyed && ((p.alpha = v), p.scale.set(1, 0.9 + 0.1 * v)), ease.outBack);
-    this.autoTimer = auto ? 2 : -1;
+    this.autoTimer = auto && !guided ? 2 : -1;
   }
 
   private closeSummary(): void {
     this.summary?.destroy({ children: true });
     this.summary = null;
+    this.backButton = null;
     this.autoTimer = -1;
   }
 
