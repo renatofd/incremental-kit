@@ -68,7 +68,7 @@ O núcleo (`src/core`, `src/modules`, `src/sim`) não importa o PixiJS. A mesma 
 | `settings`: volumes, intensidade de efeitos, tremida de tela e notação, salvos à parte do jogo | `ui/settings.ts` |
 | `GameMenu`: opções, estatísticas, conquistas e save (exportar, importar, apagar) | `ui/menu.ts` |
 | `Slider` | `ui/widgets.ts` |
-| `TutorialHand`: mãozinha que aponta um alvo e "toca" em loop, com frase que encolhe para caber e pode vir de cima | `ui/tutorial-hand.ts` |
+| `TutorialHand`: mãozinha em pixel art (`ui/assets/hand*.png`, ou suas texturas) que aponta um alvo e "toca" em loop, com frase que encolhe para caber e pode vir de cima | `ui/tutorial-hand.ts` |
 
 Textos que mudam todo frame usam `BitmapText`, e partículas usam `ParticleContainer`, que são os caminhos mais rápidos do PixiJS.
 
