@@ -17,8 +17,8 @@ Este repositório é um template de jogos incrementais. Quando ele for usado com
 | --- | --- |
 | `src/core` | Motor (`engine.ts`), números grandes (`num.ts`), modificadores, save/offline, loop de passo fixo, eventos |
 | `src/modules` | Prestígio, runs curtas, automação, eventos aleatórios |
-| `src/ui` | `KitApp`/`Scene`, `Button`, `Panel`, `ProgressBar`, `Tooltip`, `Toasts`, `TreeView`, `Particles`, `FloatingText`, `ScreenShake`, `ResourceBar`, `DebugPanel`, `GameMenu`, `Slider`, `audio`, `settings` |
-| `src/sim` | Simulador headless de balanceamento |
+| `src/ui` | `KitApp`/`Scene`, `Button` (selo "!" com `badge`), `Badge`, `Panel`, `ProgressBar`, `Tooltip`, `Toasts`, `TreeView`, `Particles`, `FloatingText`, `ScreenShake`, `ResourceBar`, `DebugPanel`, `GameMenu`, `Slider`, `audio`, `settings` |
+| `src/sim` | Simulador headless de balanceamento, com perfis de jogador (`simulateProfiles`, `DEFAULT_PROFILES`) |
 | `games/node-breaker` | Jogo de exemplo completo: use como referência e ponto de partida |
 | `tools/simulate.ts` | Bot que joga o exemplo e mede o ritmo |
 
@@ -29,8 +29,15 @@ Este repositório é um template de jogos incrementais. Quando ele for usado com
 3. Monte os módulos em `game.ts` (`createGame`), incluindo só os que o jogo usa.
 4. Substitua `arena.ts` pela mecânica principal do jogo, como um `GameModule` sem dependência de tela. Leia atributos com `engine.statNumber('...')` e dê recursos com `engine.gain(...)`.
 5. Adapte as cenas (`hub-scene.ts`, `run-scene.ts`) e o `main.ts`; aponte o `index.html` para o `main.ts` do jogo.
-6. Adapte `tools/simulate.ts` com um bot do novo jogo e rode `npm run sim`. Mire em nenhuma parede (3+ minutos sem compras) e na duração total que o usuário pediu.
+6. Adapte `tools/simulate.ts` com um bot do novo jogo e rode `npm run sim`. A política do bot deve respeitar o perfil (`effort`, `idleSeconds`, `prestige`). Mire em nenhuma parede (3+ minutos sem compras) nos perfis com prestígio, paredes no perfil sem prestígio e na duração total que o usuário pediu.
 7. Escreva testes em `tests/` para a lógica nova.
+
+## Ganchos prontos
+
+- **Selo "!"**: todo botão que leva a uma árvore mostra `button.badge = hasAffordable(engine, árvores)`, inclusive na tela de resultado da run.
+- **Pausar a run**: `runs.hold = () => condição` congela o tempo da run (tutorial, popup esperando o jogador).
+- **Save desligado**: `saves.enabled = false` em modos de teste ou debug que não podem tocar no save do jogador.
+- **Juice da árvore**: `TreeView` já treme o tooltip ao abrir e solta uma onda no formato do nó a cada compra; desligue com `wobble: false` ou `buyWave: false`. Se mudar o formato dos nós, mude `nodePath` para a onda acompanhar.
 
 ## Antes de entregar
 

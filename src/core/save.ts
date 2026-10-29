@@ -81,6 +81,8 @@ export class SaveManager {
   private storage: StorageAdapter;
   private key: string;
   private now: () => number;
+  /** Desligado, `save()` não grava nada (modo de teste que não deve tocar no save). */
+  enabled = true;
 
   constructor(private engine: Engine, opts: SaveManagerOptions = {}) {
     this.storage = opts.storage ?? localStorageAdapter;
@@ -99,6 +101,7 @@ export class SaveManager {
   }
 
   save(): void {
+    if (!this.enabled) return;
     this.storage.write(this.key, this.toString());
   }
 

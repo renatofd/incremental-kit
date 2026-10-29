@@ -1,4 +1,5 @@
 import { BitmapText, Container, FederatedPointerEvent, Graphics } from 'pixi.js';
+import { hasAffordable } from '../../src/core/engine';
 import { D, format } from '../../src/core/num';
 import type { RunSummary } from '../../src/modules/runs';
 import { audio } from '../../src/ui/audio';
@@ -261,7 +262,7 @@ export class RunScene extends Scene {
     total.position.set(24, y + 4);
     p.addChild(total);
     const auto = engine.statNumber('auto.run') > 0;
-    const back = new Button({ text: 'Árvore', width: 150, onClick: () => this.ctx.goToHub() }).place(24, 180);
+    const back = new Button({ text: 'Árvore', width: 150, badge: hasAffordable(engine, ['main', 'reboot']), onClick: () => this.ctx.goToHub() }).place(24, 180);
     const again = new Button({ text: auto ? 'Nova run (auto)' : 'Nova run', width: 150, color: theme.good, onClick: () => this.startNext() }).place(186, 180);
     p.addChild(back, again);
     this.summary = p;

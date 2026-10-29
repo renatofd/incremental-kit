@@ -20,6 +20,10 @@ export interface TreeViewOptions {
   /** Cor do nó por tag ou id, para diferenciar ramos. */
   colorFor?: (u: UpgradeDef) => number | undefined;
   particles?: Particles;
+  /** Onda no formato do nó que se espalha pelo fundo a cada compra (padrão true). */
+  buyWave?: boolean;
+  /** Tremida no ângulo do tooltip quando ele abre sobre um nó (padrão true). */
+  wobble?: boolean;
   onBuy?: (u: UpgradeDef, level: number) => void;
 }
 
@@ -49,6 +53,7 @@ const STATUS_TEXT: Record<UpgradeStatus, string> = {
 export class TreeView extends Container {
   readonly world = new Container();
   private edges = new Graphics();
+  private wavesLayer = new Container();
   private nodesLayer = new Container();
   private hit = new Graphics();
   private views = new Map<string, NodeView>();
@@ -65,9 +70,9 @@ export class TreeView extends Container {
 
   constructor(private engine: Engine, private tooltip: Tooltip, opts: TreeViewOptions = {}) {
     super();
-    this.opts = { tree: 'main', grid: 96, nodeSize: 52, teaseHidden: true, ...opts };
+    this.opts = { tree: 'main', grid: 96, nodeSize: 52, teaseHidden: true, buyWave: true, wobble: true, ...opts };
     this.addChild(this.hit, this.world);
-    this.world.addChild(this.edges, this.nodesLayer);
+    this.world.addChild(this.edges, this.wavesLayer, this.nodesLayer);
     if (opts.particles) this.world.addChild(opts.particles);
     for (const u of engine.upgradesInTree(this.opts.tree)) this.createNode(u);
     this.setupInput();
@@ -131,8 +136,10 @@ export class TreeView extends Container {
     if (this.holding) {
       this.holding.t -= dt;
       if (this.holding.t <= 0) {
-        this.tryBuy(this.holding.id, true);
+        const id = this.holding.id;
         this.holding.t = 0.1;
+        // tryBuy zera `holding` quando a compra falha (sem recursos ou nível máximo).
+        this.tryBuy(id, true);
       }
     }
     // Pulso nos nós compráveis.
@@ -161,6 +168,10 @@ export class TreeView extends Container {
       this.hovered = u.id;
       this.lastPointer = { x: e.global.x, y: e.global.y };
       Tweens.to(0.12, root.scale.x, 1.1, (s) => !root.destroyed && root.scale.set(s));
+      if (this.opts.wobble) {
+        this.showTooltip(u.id);
+        this.tooltip.wobble();
+      }
     });
     root.on('pointermove', (e: FederatedPointerEvent) => (this.lastPointer = { x: e.global.x, y: e.global.y }));
     root.on('pointerout', () => {
@@ -187,7 +198,9 @@ export class TreeView extends Container {
     if (this.engine.buyUpgrade(id)) {
       const level = this.engine.upgradeLevel(id);
       Tweens.to(0.3, 1.35, this.hovered === id ? 1.1 : 1, (s) => !v.root.destroyed && v.root.scale.set(s), ease.outBack);
-      this.opts.particles?.burst(v.root.x, v.root.y, this.colorOf(v.def, 'affordable'), repeating ? 6 : 18, 260);
+      const color = this.colorOf(v.def, 'affordable');
+      this.opts.particles?.burst(v.root.x, v.root.y, color, repeating ? 6 : 18, 260);
+      if (this.opts.buyWave) this.wave(v, color, repeating);
       audio.play('buy', { pitch: 1 + Math.min(level, 20) * 0.02, volume: repeating ? 0.6 : 1 });
       this.opts.onBuy?.(v.def, level);
       this.refresh();
@@ -199,6 +212,31 @@ export class TreeView extends Container {
     } else {
       this.holding = null;
     }
+  }
+
+  /** Contorno do nó; a onda de compra usa o mesmo formato. */
+  private nodePath(g: Graphics, size: number): Graphics {
+    return g.roundRect(-size / 2, -size / 2, size, size, 12);
+  }
+
+  /** Onda no formato do nó que cresce e some atrás da árvore. */
+  private wave(v: NodeView, color: number, small: boolean): void {
+    const g = this.nodePath(new Graphics(), this.opts.nodeSize)
+      .fill({ color, alpha: 0.08 })
+      .stroke({ width: 3, color });
+    g.position.copyFrom(v.root.position);
+    this.wavesLayer.addChild(g);
+    const end = small ? 2 : 3.4;
+    const alpha = small ? 0.45 : 0.85;
+    Tweens.add(
+      small ? 0.45 : 0.7,
+      (k) => {
+        g.scale.set(1 + (end - 1) * k);
+        g.alpha = alpha * (1 - k);
+      },
+      ease.outCubic,
+      () => g.destroy(),
+    );
   }
 
   private colorOf(u: UpgradeDef, status: UpgradeStatus | 'teased'): number {
@@ -251,9 +289,8 @@ export class TreeView extends Container {
     v.root.visible = status !== 'hidden';
     const color = this.colorOf(v.def, status as UpgradeStatus);
     const bought = this.engine.upgradeLevel(v.def.id) > 0;
-    v.shape.clear().roundRect(-s / 2, -s / 2, s, s, 12).fill({ color: theme.panel, alpha: 1 });
-    v.shape
-      .roundRect(-s / 2, -s / 2, s, s, 12)
+    this.nodePath(v.shape.clear(), s).fill({ color: theme.panel, alpha: 1 });
+    this.nodePath(v.shape, s)
       .fill({ color: bought ? color : theme.panel, alpha: bought ? 0.28 : 1 })
       .stroke({ width: status === 'affordable' || status === 'maxed' ? 2.5 : 1.5, color });
     v.glow.clear();
