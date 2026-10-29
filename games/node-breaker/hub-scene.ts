@@ -1,4 +1,5 @@
 import { Container } from 'pixi.js';
+import { hasAffordable } from '../../src/core/engine';
 import { format } from '../../src/core/num';
 import { Scene, uiScale } from '../../src/ui/app';
 import { audio } from '../../src/ui/audio';
@@ -167,6 +168,9 @@ export class HubScene extends Scene {
     const rebootOpen = engine.isUnlocked('reboot');
     this.tabMain.visible = this.tabReboot.visible = rebootOpen;
     if (!rebootOpen && this.showingReboot) this.showTree(false);
+    // "!" na aba da outra árvore quando ela tem upgrade comprável.
+    this.tabMain.badge = this.showingReboot && hasAffordable(engine, 'main');
+    this.tabReboot.badge = !this.showingReboot && hasAffordable(engine, 'reboot');
 
     // Mineradores
     const minersOpen = engine.isGeneratorUnlocked('miner');

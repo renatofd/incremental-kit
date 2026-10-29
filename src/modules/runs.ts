@@ -113,9 +113,12 @@ export class RunModule implements GameModule {
     return summary;
   }
 
+  /** Enquanto devolver true, o tempo da run não corre (ex.: tutorial esperando um toque). */
+  hold: () => boolean = () => false;
+
   tick(_engine: Engine, dt: number, ctx: TickContext): void {
     const s = this.st();
-    if (!s.active || ctx.offline) return;
+    if (!s.active || ctx.offline || this.hold()) return;
     s.elapsed += dt;
     if (s.elapsed >= this.duration()) this.end('time');
   }

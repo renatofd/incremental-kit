@@ -446,6 +446,14 @@ export class Engine {
 
 // ---------------------------------------------------------------- helpers
 
+/**
+ * Há algum upgrade comprável agora numa das árvores? Serve para o selo "!"
+ * nos botões que levam até a árvore.
+ */
+export function hasAffordable(engine: Engine, trees: string | string[] = 'main'): boolean {
+  return asArray(trees).some((tree) => engine.upgradesInTree(tree).some((u) => engine.upgradeStatus(u.id) === 'affordable'));
+}
+
 export function asArray<T>(v: T | T[]): T[] {
   return Array.isArray(v) ? v : [v];
 }

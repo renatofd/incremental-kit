@@ -7,6 +7,7 @@ import {
   RunModule,
   SaveManager,
   bulkCost,
+  hasAffordable,
   deserialize,
   format,
   maxAffordable,
@@ -139,6 +140,16 @@ describe('motor', () => {
     expect(e.stat('damage').toNumber()).toBe(105);
   });
 
+  it('hasAffordable avisa quando há upgrade comprável na árvore', () => {
+    const e = new Engine(def);
+    expect(hasAffordable(e)).toBe(false);
+    e.add('gold', 1);
+    expect(hasAffordable(e)).toBe(true);
+    expect(hasAffordable(e, 'ascend')).toBe(false);
+    e.add('gems', 1);
+    expect(hasAffordable(e, ['main', 'ascend'])).toBe(true);
+  });
+
   it('respec devolve o que foi gasto', () => {
     const e = new Engine(def);
     e.add('gold', 100);
@@ -179,6 +190,20 @@ describe('módulos', () => {
     expect(runs.last?.collected.gold.toNumber()).toBe(7);
   });
 
+  it('run com hold não corre o tempo', () => {
+    const runs = new RunModule();
+    const e = new Engine({ ...def, stats: { 'run.duration': 10 } }, { modules: [runs] });
+    let held = true;
+    runs.hold = () => held;
+    runs.start();
+    for (let i = 0; i < 300; i++) e.tick(0.05);
+    expect(runs.active).toBe(true);
+    expect(runs.elapsed).toBe(0);
+    held = false;
+    for (let i = 0; i < 300; i++) e.tick(0.05);
+    expect(runs.active).toBe(false);
+  });
+
   it('autocomprador compra geradores quando desbloqueado', () => {
     const auto = new AutomationModule([
       { id: 'auto-mine', name: 'Auto', target: { generator: 'mine' }, unlockWhen: { upgrade: 'root' }, interval: 1 },
@@ -209,6 +234,17 @@ describe('save', () => {
     expect(report?.seconds).toBe(100);
     expect(e2.generatorsOwned('mine')).toBe(1);
     expect(e2.amount('gold').toNumber()).toBeCloseTo(100, 5);
+  });
+
+  it('save desligado não grava', () => {
+    const storage = memoryStorage();
+    const saves = new SaveManager(new Engine(def), { storage });
+    saves.enabled = false;
+    saves.save();
+    expect(saves.hasSave()).toBe(false);
+    saves.enabled = true;
+    saves.save();
+    expect(saves.hasSave()).toBe(true);
   });
 
   it('migra saves antigos', () => {

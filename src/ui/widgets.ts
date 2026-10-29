@@ -77,6 +77,8 @@ export interface ButtonOptions {
   size?: number;
   color?: number;
   onClick?: () => void;
+  /** Começa com o selo "!" no canto (ver `Button.badge`). */
+  badge?: boolean;
 }
 
 /** Botão com estados de hover, pressionado e desabilitado, e um "pop" ao clicar. */
@@ -89,6 +91,7 @@ export class Button extends Container {
   private w: number;
   private h: number;
   private color: number;
+  private badgeView: Badge | null = null;
   onClick?: () => void;
   /** Som do clique; `null` silencia. */
   sound: string | null;
@@ -118,6 +121,22 @@ export class Button extends Container {
       this.onClick?.();
     });
     this.redraw();
+    if (opts.badge) this.badge = true;
+  }
+
+  /** Selo "!" pulsando no canto de cima, à direita (ex.: há upgrade para comprar). */
+  set badge(on: boolean) {
+    if (!on && !this.badgeView) return;
+    if (!this.badgeView) {
+      this.badgeView = new Badge();
+      this.badgeView.position.set(this.w - 6, 2);
+      this.addChild(this.badgeView);
+    }
+    this.badgeView.visible = on;
+  }
+
+  get badge(): boolean {
+    return this.badgeView?.visible ?? false;
   }
 
   /** Posiciona pelo canto superior esquerdo (o pivô fica no centro para o "pop"). */
@@ -163,6 +182,24 @@ export class Button extends Container {
       .fill({ color: c, alpha: fillAlpha })
       .stroke({ width: 1.5, color: c, alpha: this._enabled ? 1 : 0.5 });
     this.text.alpha = this._enabled ? 1 : 0.5;
+  }
+}
+
+/**
+ * Selo "!" pulsando, para avisar que há algo para comprar ou ver. Use
+ * `Button.badge` nos botões; para outros alvos, adicione um Badge solto.
+ */
+export class Badge extends Container {
+  readonly text: Text;
+
+  constructor(text = '!', size = 26, color = theme.warning) {
+    super();
+    this.text = label(text, size, color, { fontWeight: '700', stroke: { color: 0x000000, width: 5 } });
+    this.text.anchor.set(0.5);
+    this.addChild(this.text);
+    this.eventMode = 'none';
+    this.visible = false;
+    this.onRender = () => this.text.scale.set(1 + Math.sin(performance.now() / 160) * 0.15);
   }
 }
 
@@ -223,11 +260,15 @@ export interface TooltipLine {
 export class Tooltip extends Container {
   private bg = new Graphics();
   private lines = new Container();
+  /** Fundo e linhas, girando em torno do centro na tremida de `wobble()`. */
+  private body = new Container();
   private pool: Text[] = [];
+  private stopWobble: (() => void) | null = null;
 
   constructor(private screen: () => { width: number; height: number }) {
     super();
-    this.addChild(this.bg, this.lines);
+    this.body.addChild(this.bg, this.lines);
+    this.addChild(this.body);
     this.visible = false;
     this.eventMode = 'none';
   }
@@ -257,6 +298,8 @@ export class Tooltip extends Container {
       .roundRect(0, 0, width, height, 8)
       .fill({ color: theme.panel, alpha: 0.97 })
       .stroke({ width: 1, color: theme.panelBorder });
+    this.body.pivot.set(width / 2, height / 2);
+    this.body.position.set(width / 2, height / 2);
     // Trabalha em unidades lógicas e escala junto com o resto do HUD.
     const s = this.screen();
     const k = uiScale(s.width, s.height);
@@ -271,6 +314,17 @@ export class Tooltip extends Container {
     this.scale.set(k);
     this.position.set(Math.max(8, px) * k, Math.max(8, py) * k);
     this.visible = true;
+  }
+
+  /** Tremida rápida no ângulo, para quando o painel abre. */
+  wobble(strength = 0.08): void {
+    this.stopWobble?.();
+    this.stopWobble = Tweens.add(
+      0.4,
+      (k) => (this.body.rotation = Math.sin(k * Math.PI * 5) * strength * (1 - k)),
+      ease.linear,
+      () => ((this.body.rotation = 0), (this.stopWobble = null)),
+    );
   }
 
   hide(): void {
